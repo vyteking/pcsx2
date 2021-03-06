@@ -389,7 +389,7 @@ void Dialogs::GSDumpDialog::GenPacketInfo(GSData& dump)
 			case VSync:
 			{
 				wxString s;
-				s.Printf("Field = %u", (u64)(dump.data));
+				s.Printf("Field = %llu", (u64)(dump.data));
 				m_gif_packet->AppendItem(rootId, s);
 				break;
 			}
