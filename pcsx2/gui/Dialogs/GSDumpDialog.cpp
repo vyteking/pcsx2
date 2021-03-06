@@ -64,7 +64,6 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	, m_thread(std::make_unique<GSThread>(this))
 {
 	//TODO: figure out how to fix sliders so the destructor doesn't segfault
-	wxFlexGridSizer& general(*new wxFlexGridSizer(2, StdPadding, StdPadding));
 	wxBoxSizer& dump_info(*new wxBoxSizer(wxVERTICAL));
 	wxBoxSizer& dump_preview(*new wxBoxSizer(wxVERTICAL));
 	wxFlexGridSizer& debugger(*new wxFlexGridSizer(3, StdPadding, StdPadding));
@@ -74,14 +73,18 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	wxBoxSizer& gif(*new wxBoxSizer(wxVERTICAL));
 	wxBoxSizer& dumps_list(*new wxBoxSizer(wxVERTICAL));
 
+	wxFlexGridSizer* s_flex = new wxFlexGridSizer(3, 1, 0, 0);
+	s_flex->AddGrowableCol(0);
+	s_flex->AddGrowableRow(1);
+	SetSizer(s_flex);
+
+
 	wxArrayString rdoverrides;
 	rdoverrides.Add("None");
 	rdoverrides.Add("D3D11 HW");
 	rdoverrides.Add("OGL HW");
 	rdoverrides.Add("OGL SW");
 	m_renderer_overrides->Create(this, wxID_ANY, "Renderer overrides", wxDefaultPosition, wxSize(300, 120), rdoverrides, 2);
-	dump_info += m_renderer_overrides;
-	dump_info += new wxButton(this, ID_RUN_DUMP, _("Run"));
 
 
 	m_debug_mode->Disable();
@@ -107,26 +110,25 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 
 	debugger += dbg_tree;
 	debugger += dbg_actions;
+	debugger += gif;
 
 	GetDumpsList();
 
 	dumps_list += new wxStaticText(this, wxID_ANY, _("GS Dumps List"));
 	dumps_list += m_dump_list;
 
+	dump_info += m_renderer_overrides;
+	dump_info += new wxButton(this, ID_RUN_DUMP, _("Run"));
+
 	dump_preview += new wxStaticText(this, wxID_ANY, _("Preview"));
 	dump_preview += m_preview_image;
-
 
 	dumps += dumps_list;
 	dumps += dump_info;
 	dumps += dump_preview;
-
-	general += dumps;
-	general += dump_info;
-	general += debugger;
-	general += gif;
-
-	*this += general;
+	
+	*this += dumps;
+	*this += debugger;
 
 	SetSizerAndFit(GetSizer());
 
