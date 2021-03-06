@@ -274,21 +274,20 @@ void Dialogs::GSDumpDialog::GenPacketList(std::vector<GSData>& dump)
 	wxTreeItemId rootId = m_gif_list->AppendItem(mainrootId, "0 - VSync");
 	for (auto& element : dump)
 	{
-			wxString s;
-			([&] { return element.id == Transfer; })() ? (s.Printf("%d - %s - %s - %d byte", i, GSTypeNames[element.id], GSTransferPathNames[element.path], element.length)) : 
+		wxString s;
+		([&] { return element.id == Transfer; })() ? (s.Printf("%d - %s - %s - %d byte", i, GSTypeNames[element.id], GSTransferPathNames[element.path], element.length)) : 
 									s.Printf("%d - %s - %d byte", i, GSTypeNames[element.id], element.length);
-			if (element.id == VSync)
-			{
-				m_gif_list->SetItemText(rootId, s);
-				rootId = m_gif_list->AppendItem(mainrootId, "VSync");
-			}
-			else 
-				m_gif_list->AppendItem(rootId, s);
+		if (element.id == VSync)
+		{
+			m_gif_list->SetItemText(rootId, s);
+			rootId = m_gif_list->AppendItem(mainrootId, "VSync");
+		}
+		else 
+			m_gif_list->AppendItem(rootId, s);
 		i++;
 	}
 	m_gif_list->Delete(rootId);
 }
-
 
 void Dialogs::GSDumpDialog::GenPacketInfo(GSData& dump)
 {
@@ -569,10 +568,10 @@ void Dialogs::GSDumpDialog::ParseTreeReg(wxTreeItemId& id, GIFReg reg, u128 data
 		}
 		case AD:
 		{
-			wxString s;
 			GIFReg nreg = (GIFReg)(data.hi & ((u64)(1 << 8) - 1));
 			if ((GIFReg)nreg == AD)
 			{
+				wxString s;
 				s.Printf("NOP");
 				m_gif_packet->AppendItem(id, s);
 			}
@@ -657,7 +656,7 @@ void Dialogs::GSDumpDialog::GSThread::ExecuteTaskInThread()
 
 	u32 crc = 0, ss = 0;
 	// XXX: check the numbers are correct
-	int renderer_override = m_root_window->m_renderer_overrides->GetSelection();
+	const int renderer_override = m_root_window->m_renderer_overrides->GetSelection();
 	char regs[8192];
 
 	dump_file.Read(&crc, 4);
