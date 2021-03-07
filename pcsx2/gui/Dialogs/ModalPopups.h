@@ -208,7 +208,7 @@ namespace Dialogs
 		struct GSData
 		{
 			GSType id;
-			char* data;
+			std::shared_ptr<char[]> data;
 			int length;
 			GSTransferPath path;
 		};
