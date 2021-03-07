@@ -114,6 +114,10 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	m_vsync->Disable();
 	GetDumpsList();
 
+	m_fs_watcher.SetOwner(this);
+	m_fs_watcher.Add(wxFileName(g_Conf->Folders.Snapshots.ToAscii()));
+	wxEvtHandler::Connect(wxEVT_FSWATCHER, wxFileSystemWatcherEventHandler(Dialogs::GSDumpDialog::PathChanged));
+
 	Bind(wxEVT_LIST_ITEM_SELECTED, &Dialogs::GSDumpDialog::SelectedDump, this, ID_DUMP_LIST);
 	Bind(wxEVT_BUTTON, &Dialogs::GSDumpDialog::RunDump, this, ID_RUN_DUMP);
 	Bind(wxEVT_BUTTON, &Dialogs::GSDumpDialog::ToStart, this, ID_RUN_START);
@@ -126,6 +130,7 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 
 void Dialogs::GSDumpDialog::GetDumpsList()
 {
+	m_dump_list->ClearAll();
 	wxDir snaps(g_Conf->Folders.Snapshots.ToAscii());
 	wxString filename;
 	bool cont = snaps.GetFirst(&filename, "*.gs", wxDIR_DEFAULT);
@@ -765,4 +770,9 @@ void Dialogs::GSDumpDialog::GSThread::ExecuteTaskInThread()
 	GetCorePlugins().Shutdown();
 	OnStop();
 	return;
+}
+
+void Dialogs::GSDumpDialog::PathChanged(wxFileSystemWatcherEvent& event)
+{
+	GetDumpsList();
 }
