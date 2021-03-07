@@ -184,7 +184,7 @@ void Dialogs::GSDumpDialog::RunDump(wxCommandEvent& event)
 	return;
 }
 
-void Dialogs::GSDumpDialog::ProcessDumpEvent(GSData event, char* regs)
+void Dialogs::GSDumpDialog::ProcessDumpEvent(GSData& event, char* regs)
 {
     switch (event.id)
 	{
@@ -194,7 +194,7 @@ void Dialogs::GSDumpDialog::ProcessDumpEvent(GSData event, char* regs)
 			{
 				case Path1Old:
 				{
-					std::shared_ptr<char[]> data(new char[16384]);
+					std::unique_ptr<char[]> data(new char[16384]);
 					int addr = 16384 - event.length;
 					memcpy(data.get(), event.data.get() + addr, event.length);
 					GSgifTransfer1((u32*)data.get(), addr);
@@ -219,7 +219,7 @@ void Dialogs::GSDumpDialog::ProcessDumpEvent(GSData event, char* regs)
 			break;
 		case ReadFIFO2:
 		{
-			std::shared_ptr<char[]> arr(new char[*((int*)event.data.get())]);
+			std::unique_ptr<char[]> arr(new char[*((int*)event.data.get())]);
 			GSreadFIFO2((u64*)arr.get(), *((int*)event.data.get()));
 			break;
 		}
@@ -626,7 +626,7 @@ void Dialogs::GSDumpDialog::GSThread::ExecuteTaskInThread()
 	m_dump_file->Read(&ss, 4);
 
 
-	std::shared_ptr<char[]> state_data(new char[ss]);
+	std::unique_ptr<char[]> state_data(new char[ss]);
 	m_dump_file->Read(state_data.get(), ss);
 	m_dump_file->Read(&regs, 8192);
 
@@ -645,34 +645,30 @@ void Dialogs::GSDumpDialog::GSThread::ExecuteTaskInThread()
 				m_dump_file->Read(&id_transfer, 1);
 				s32 size = 0;
 				m_dump_file->Read(&size, 4);
-				std::shared_ptr<char[]> transfer_data(new char[size]);
+				std::unique_ptr<char[]> transfer_data(new char[size]);
 				m_dump_file->Read(transfer_data.get(), size);
-				GSData data = {id, transfer_data, size, id_transfer};
-				m_root_window->m_dump_packets.push_back(data);
+				m_root_window->m_dump_packets.push_back({id, std::move(transfer_data), size, id_transfer});
 				break;
 			}
 			case VSync:
 			{
-				std::shared_ptr<char[]> vsync(new char[1]);
+				std::unique_ptr<char[]> vsync(new char[1]);
 				m_dump_file->Read(vsync.get(), 1);
-				GSData data = {id, vsync, 1, Dummy};
-				m_root_window->m_dump_packets.push_back(data);
+				m_root_window->m_dump_packets.push_back({id, std::move(vsync), 1, Dummy});
 				break;
 			}
 			case ReadFIFO2:
 			{
-				std::shared_ptr<char[]> fifo(new char[4]);
+				std::unique_ptr<char[]> fifo(new char[4]);
 				m_dump_file->Read(fifo.get(), 4);
-				GSData data = {id, fifo, 4, Dummy};
-				m_root_window->m_dump_packets.push_back(data);
+				m_root_window->m_dump_packets.push_back({id, std::move(fifo), 4, Dummy});
 				break;
 			}
 			case Registers:
 			{
-				std::shared_ptr<char[]> regs_tmp(new char[8192]);
+				std::unique_ptr<char[]> regs_tmp(new char[8192]);
 				m_dump_file->Read(regs_tmp.get(), 8192);
-				GSData data = {id, regs_tmp, 8192, Dummy};
-				m_root_window->m_dump_packets.push_back(data);
+				m_root_window->m_dump_packets.push_back({id, std::move(regs_tmp), 8192, Dummy});
 				break;
 			}
 		}
@@ -747,7 +743,8 @@ void Dialogs::GSDumpDialog::GSThread::ExecuteTaskInThread()
 				}
 
 				// do vsync
-				m_root_window->ProcessDumpEvent(GSData{VSync, 0, 0, Dummy}, regs);
+				GSData vsync_end = {VSync, 0, 0, Dummy};
+				m_root_window->ProcessDumpEvent(vsync_end, regs);
 			}
 		}
 		else
