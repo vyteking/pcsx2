@@ -50,17 +50,17 @@ using namespace pxSizerFlags;
 
 Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	: wxDialogWithHelpers(parent, _("GSDumpGov"), pxDialogFlags())
-	, m_dump_list(new wxListView(this, ID_DUMP_LIST, wxDefaultPosition, wxSize(500, 400), wxLC_NO_HEADER | wxLC_REPORT))
-	, m_preview_image(new wxStaticBitmap(this, wxID_ANY, wxBitmap(EmbeddedImage<res_NoIcon>().Get())))
+	, m_dump_list(new wxListView(this, ID_DUMP_LIST, wxDefaultPosition, wxSize(400, 300), wxLC_NO_HEADER | wxLC_REPORT | wxLC_SINGLE_SEL))
+	, m_preview_image(new wxStaticBitmap(this, wxID_ANY, wxBitmap(EmbeddedImage<res_NoIcon>().Get()), wxDefaultPosition, wxSize(400,250)))
 	, m_selected_dump(new wxString(""))
 	, m_debug_mode(new wxCheckBox(this, ID_DEBUG_MODE, _("Debug Mode")))
 	, m_renderer_overrides(new wxRadioBox())
-	, m_gif_list(new wxTreeCtrl(this, ID_SEL_PACKET, wxDefaultPosition, wxSize(500, 400), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
-	, m_gif_packet(new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(500, 400), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
-	, m_start(new wxButton(this, ID_RUN_START, _("Go to Start")))
-	, m_step(new wxButton(this, ID_RUN_START, _("Step")))
-	, m_selection(new wxButton(this, ID_RUN_START, _("Run to Selection")))
-	, m_vsync(new wxButton(this, ID_RUN_START, _("Go to next VSync")))
+	, m_gif_list(new wxTreeCtrl(this, ID_SEL_PACKET, wxDefaultPosition, wxSize(400, 300), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
+	, m_gif_packet(new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(400, 300), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
+	, m_start(new wxButton(this, ID_RUN_START, _("Go to Start"), wxDefaultPosition, wxSize(150,50)))
+	, m_step(new wxButton(this, ID_RUN_START, _("Step"), wxDefaultPosition, wxSize(150, 50)))
+	, m_selection(new wxButton(this, ID_RUN_START, _("Run to Selection"), wxDefaultPosition, wxSize(150, 50)))
+	, m_vsync(new wxButton(this, ID_RUN_START, _("Go to next VSync"), wxDefaultPosition, wxSize(150, 50)))
 	, m_thread(std::make_unique<GSThread>(this))
 {
 	//TODO: figure out how to fix sliders so the destructor doesn't segfault
@@ -73,64 +73,48 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	wxBoxSizer& gif(*new wxBoxSizer(wxVERTICAL));
 	wxBoxSizer& dumps_list(*new wxBoxSizer(wxVERTICAL));
 
-	wxFlexGridSizer* s_flex = new wxFlexGridSizer(3, 1, 0, 0);
-	s_flex->AddGrowableCol(0);
-	s_flex->AddGrowableRow(1);
-	SetSizer(s_flex);
-
-
 	wxArrayString rdoverrides;
 	rdoverrides.Add("None");
+	rdoverrides.Add("OGL SW");
 	rdoverrides.Add("D3D11 HW");
 	rdoverrides.Add("OGL HW");
-	rdoverrides.Add("OGL SW");
-	m_renderer_overrides->Create(this, wxID_ANY, "Renderer overrides", wxDefaultPosition, wxSize(300, 120), rdoverrides, 2);
+	m_renderer_overrides->Create(this, wxID_ANY, "Renderer overrides", wxDefaultPosition, wxDefaultSize, rdoverrides, 1);
 
+	dbg_tree += new wxStaticText(this, wxID_ANY, _("GIF Packets"));
+	dbg_tree += m_gif_list | StdExpand();
+	dbg_actions += m_debug_mode;
+	dbg_actions += m_start | StdExpand();
+	dbg_actions += m_step | StdExpand();
+	dbg_actions += m_selection | StdExpand();
+	dbg_actions += m_vsync | StdExpand();
+	gif += new wxStaticText(this, wxID_ANY, _("Packet Content"));
+	gif += m_gif_packet | StdExpand();
 
+	dumps_list += new wxStaticText(this, wxID_ANY, _("GS Dumps List")) | StdExpand();
+	dumps_list += m_dump_list | StdExpand();
+	dump_info += m_renderer_overrides | StdExpand();
+	dump_info += new wxButton(this, ID_RUN_DUMP, _("Run"), wxDefaultPosition, wxSize(150,100)) | StdExpand();
+	dump_preview += new wxStaticText(this, wxID_ANY, _("Preview")) | StdExpand();
+	dump_preview += m_preview_image | StdCenter();
+
+	dumps += dumps_list;
+	dumps += dump_info;
+	dumps += dump_preview;
+
+	debugger += dbg_tree;
+	debugger += dbg_actions;
+	debugger += gif;
+	
+	*this += dumps;
+	*this += debugger;
+
+	// populate UI and setup state
 	m_debug_mode->Disable();
 	m_start->Disable();
 	m_step->Disable();
 	m_selection->Disable();
 	m_vsync->Disable();
-
-
-	// debugger
-	dbg_tree += new wxStaticText(this, wxID_ANY, _("GIF Packets"));
-	dbg_tree += m_gif_list;
-	dbg_actions += m_debug_mode;
-	dbg_actions += m_start;
-	dbg_actions += m_step;
-	dbg_actions += m_selection;
-	dbg_actions += m_vsync;
-
-	// gif
-	gif += new wxStaticText(this, wxID_ANY, _("Packet Content"));
-	gif += m_gif_packet;
-
-
-	debugger += dbg_tree;
-	debugger += dbg_actions;
-	debugger += gif;
-
 	GetDumpsList();
-
-	dumps_list += new wxStaticText(this, wxID_ANY, _("GS Dumps List"));
-	dumps_list += m_dump_list;
-
-	dump_info += m_renderer_overrides;
-	dump_info += new wxButton(this, ID_RUN_DUMP, _("Run"));
-
-	dump_preview += new wxStaticText(this, wxID_ANY, _("Preview"));
-	dump_preview += m_preview_image;
-
-	dumps += dumps_list;
-	dumps += dump_info;
-	dumps += dump_preview;
-	
-	*this += dumps;
-	*this += debugger;
-
-	SetSizerAndFit(GetSizer());
 
 	Bind(wxEVT_LIST_ITEM_SELECTED, &Dialogs::GSDumpDialog::SelectedDump, this, ID_DUMP_LIST);
 	Bind(wxEVT_BUTTON, &Dialogs::GSDumpDialog::RunDump, this, ID_RUN_DUMP);
@@ -168,7 +152,7 @@ void Dialogs::GSDumpDialog::SelectedDump(wxListEvent& evt)
 	if (wxFileExists(filename_preview))
 	{
 		auto img = wxImage(filename_preview);
-		img.Rescale(250 * MSW_GetDPIScale(), 200 * MSW_GetDPIScale(), wxIMAGE_QUALITY_HIGH);
+		img.Rescale(400,250, wxIMAGE_QUALITY_HIGH);
 		m_preview_image->SetBitmap(wxBitmap(img));
 		delete m_selected_dump;
 		m_selected_dump = new wxString(filename);
