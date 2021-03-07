@@ -61,7 +61,6 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	, m_vsync(new wxButton(this, ID_RUN_START, _("Go to next VSync"), wxDefaultPosition, wxSize(150, 50)))
 	, m_thread(std::make_unique<GSThread>(this))
 {
-	//TODO: figure out how to fix sliders so the destructor doesn't segfault
 	wxBoxSizer& dump_info(*new wxBoxSizer(wxVERTICAL));
 	wxBoxSizer& dump_preview(*new wxBoxSizer(wxVERTICAL));
 	wxFlexGridSizer& debugger(*new wxFlexGridSizer(3, StdPadding, StdPadding));
