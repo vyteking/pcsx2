@@ -61,7 +61,7 @@ Dialogs::GSDumpDialog::GSDumpDialog(wxWindow* parent)
 	, m_debug_mode(new wxCheckBox(this, ID_DEBUG_MODE, _("Debug Mode")))
 	, m_renderer_overrides(new wxRadioBox())
 	, m_gif_list(new wxTreeCtrl(this, ID_SEL_PACKET, wxDefaultPosition, wxSize(400, 300), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
-	, m_gif_packet(new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(400, 300), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
+	, m_gif_packet(new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(400, 300), wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT))
 	, m_start(new wxButton(this, ID_RUN_START, _("Go to Start"), wxDefaultPosition, wxSize(150,50)))
 	, m_step(new wxButton(this, ID_RUN_START, _("Step"), wxDefaultPosition, wxSize(150, 50)))
 	, m_selection(new wxButton(this, ID_RUN_START, _("Run to Selection"), wxDefaultPosition, wxSize(150, 50)))
@@ -244,22 +244,30 @@ void Dialogs::GSDumpDialog::ProcessDumpEvent(const GSData& event, char* regs)
 
 void Dialogs::GSDumpDialog::StepPacket(wxCommandEvent& event)
 {
+	m_gif_list->SelectItem(m_gif_list->GetNextSibling(m_gif_list->GetSelection()));
 	m_button_events.push_back(GSEvent{Step, 0});
 }
 
 void Dialogs::GSDumpDialog::ToCursor(wxCommandEvent& event)
 {
-	m_button_events.push_back(GSEvent{RunCursor, wxAtoi(m_gif_list->GetItemText(m_gif_list->GetFocusedItem()).BeforeFirst('-'))});
+	m_button_events.push_back(GSEvent{RunCursor, wxAtoi(m_gif_list->GetItemText(m_gif_list->GetSelection()).BeforeFirst('-'))});
 }
 
 void Dialogs::GSDumpDialog::ToVSync(wxCommandEvent& event)
 {
+	wxTreeItemId pkt = m_gif_list->GetSelection();
+	if (!m_gif_list->ItemHasChildren(pkt))
+		pkt = m_gif_list->GetParent();
+	m_gif_list->SelectItem(m_gif_list->GetNextSibling(pkt));
 	m_button_events.push_back(GSEvent{RunVSync, 0});
 }
 
 void Dialogs::GSDumpDialog::ToStart(wxCommandEvent& event)
 {
 	m_button_events.push_back(GSEvent{RunCursor, 0});
+	wxTreeItemId item = m_gif_list->GetFirst();
+	m_gif_list->SelectItem(item);
+	m_gif_list->SetFocusedItem(item);
 }
 
 void Dialogs::GSDumpDialog::GenPacketList()
@@ -278,17 +286,19 @@ void Dialogs::GSDumpDialog::GenPacketList()
 			m_gif_list->SetItemText(rootId, s);
 			rootId = m_gif_list->AppendItem(mainrootId, "VSync");
 		}
-		else 
+		else
 			m_gif_list->AppendItem(rootId, s);
 		i++;
 	}
 	m_gif_list->Delete(rootId);
 }
 
-void Dialogs::GSDumpDialog::GenPacketInfo(GSData& dump)
+void Dialogs::GSDumpDialog::GenPacketInfo(GSData& dump, int id)
 {
 	m_gif_packet->DeleteAllItems();
-	wxTreeItemId rootId = m_gif_packet->AddRoot("root");
+	wxString root;
+	root.Printf("Packet %d", id);
+	wxTreeItemId rootId = m_gif_packet->AddRoot(root);
 	switch (dump.id)
 	{
 		case Transfer:
@@ -402,7 +412,7 @@ void Dialogs::GSDumpDialog::GenPacketInfo(GSData& dump)
 void Dialogs::GSDumpDialog::ParsePacket(wxTreeEvent& event)
 {
 	int id = wxAtoi(m_gif_list->GetItemText(event.GetItem()).BeforeFirst('-'));
-	GenPacketInfo(m_dump_packets[id]);
+	GenPacketInfo(m_dump_packets[id], id);
 }
 
 void Dialogs::GSDumpDialog::ParseTreeReg(wxTreeItemId& id, GIFReg reg, u128 data, bool packed)
