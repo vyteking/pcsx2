@@ -495,7 +495,6 @@ add_custom_command(
 
 # PAD/Linux sources 
 set(pcsx2PADSources
-    PAD/Linux/controller.cpp
     PAD/Linux/Device.cpp
     PAD/Linux/SDL/joystick.cpp
     PAD/Linux/keyboard.cpp
@@ -506,7 +505,7 @@ set(pcsx2PADSources
     PAD/Linux/wx_dialog/opPanel.cpp
     PAD/Linux/wx_dialog/GamepadConfiguration.cpp
     PAD/Linux/wx_dialog/JoystickConfiguration.cpp
-    PAD/Linux/ini.cpp
+    PAD/Linux/Config.cpp
     PAD/Linux/linux.cpp
     ${CMAKE_BINARY_DIR}/pcsx2/PAD/Linux/resources_pad.cpp
     )
