@@ -20,9 +20,9 @@
 
 #include <wx/wx.h>
 
+#include "../Global.h"
 #include "../GamePad.h"
 #include "../keyboard.h"
-#include "../PAD.h"
 
 class JoystickConfiguration : public wxDialog
 {
