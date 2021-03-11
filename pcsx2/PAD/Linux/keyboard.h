@@ -29,7 +29,7 @@
 extern void AnalyzeKeyEvent(keyEvent& evt);
 extern void UpdateKeyboardInput();
 extern bool PollForNewKeyboardKeys(u32& pkey);
-#endif 
+#endif
 
 #if defined(__unix__)
 #include <gtk/gtk.h>
