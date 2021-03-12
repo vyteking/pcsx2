@@ -123,37 +123,13 @@ namespace usb_pad
 							switch (device.axis_map[event.number])
 							{
 								case 0x80 | JOY_STEERING:
-								case ABS_X:
 									mWheelData.steering = device.cfg.inverted[0] ? range - NORM(event.value, range) : NORM(event.value, range);
 									break;
-								case ABS_Y:
-									mWheelData.clutch = NORM(event.value, 0xFF);
-									break;
-								//case ABS_RX: mWheelData.axis_rx = NORM(event.value, 0xFF); break;
-								case ABS_RY:
-								treat_me_like_ABS_RY:
-									mWheelData.throttle = 0xFF;
-									mWheelData.brake = 0xFF;
-									if (event.value < 0)
-										mWheelData.throttle = NORM2(event.value, 0xFF);
-									else
-										mWheelData.brake = NORM2(-event.value, 0xFF);
-									break;
 								case 0x80 | JOY_THROTTLE:
-								case ABS_Z:
-									if (device.is_gamepad)
-										mWheelData.brake = 0xFF - NORM(event.value, 0xFF);
-									else
-										mWheelData.throttle = device.cfg.inverted[1] ? NORM(event.value, 0xFF) : 0xFF - NORM(event.value, 0xFF);
+									mWheelData.throttle = device.cfg.inverted[1] ? NORM(event.value, 0xFF) : 0xFF - NORM(event.value, 0xFF);
 									break;
 								case 0x80 | JOY_BRAKE:
-								case ABS_RZ:
-									if (device.is_gamepad)
-										mWheelData.throttle = 0xFF - NORM(event.value, 0xFF);
-									else if (device.is_dualanalog)
-										goto treat_me_like_ABS_RY;
-									else
-										mWheelData.brake = device.cfg.inverted[2] ? NORM(event.value, 0xFF) : 0xFF - NORM(event.value, 0xFF);
+									mWheelData.brake = device.cfg.inverted[2] ? NORM(event.value, 0xFF) : 0xFF - NORM(event.value, 0xFF);
 									break;
 
 								//FIXME hatswitch mapping maybe
@@ -185,78 +161,16 @@ namespace usb_pad
 						}
 						else if ((event.type & ~JS_EVENT_INIT) == JS_EVENT_BUTTON)
 						{
-							PS2Buttons button = PAD_BUTTON_COUNT;
-							if (device.btn_map[event.number] >= (0x8000 | JOY_CROSS) &&
-								device.btn_map[event.number] <= (0x8000 | JOY_L3))
-							{
-								button = (PS2Buttons)(device.btn_map[event.number] & ~0x8000);
-							}
+							uint16_t button = device.btn_map[event.number];
+							if (button == (uint16_t)-1 || !(button & 0x8000))
+								break;
 
-							else if (device.btn_map[event.number] >= BTN_TRIGGER &&
-									 device.btn_map[event.number] < BTN_BASE5)
-							{
-								button = (PS2Buttons)(device.btn_map[event.number] - BTN_TRIGGER);
-							}
+							button &= ~0x8000;
+
+							if (event.value)
+								mWheelData.buttons |= 1 << convert_wt_btn(mType, button); //on
 							else
-							{
-								// Map to xbox360ish controller
-								switch (device.btn_map[event.number])
-								{
-									// Digital hatswitch
-									case 0x8000 | JOY_LEFT:
-										mWheelData.hat_horz = PAD_HAT_W;
-										break;
-									case 0x8000 | JOY_RIGHT:
-										mWheelData.hat_horz = PAD_HAT_E;
-										break;
-									case 0x8000 | JOY_UP:
-										mWheelData.hat_vert = PAD_HAT_N;
-										break;
-									case 0x8000 | JOY_DOWN:
-										mWheelData.hat_vert = PAD_HAT_S;
-										break;
-									case BTN_WEST:
-										button = PAD_SQUARE;
-										break;
-									case BTN_NORTH:
-										button = PAD_TRIANGLE;
-										break;
-									case BTN_EAST:
-										button = PAD_CIRCLE;
-										break;
-									case BTN_SOUTH:
-										button = PAD_CROSS;
-										break;
-									case BTN_SELECT:
-										button = PAD_SELECT;
-										break;
-									case BTN_START:
-										button = PAD_START;
-										break;
-									case BTN_TR:
-										button = PAD_R1;
-										break;
-									case BTN_TL:
-										button = PAD_L1;
-										break;
-									case BTN_THUMBR:
-										button = PAD_R2;
-										break;
-									case BTN_THUMBL:
-										button = PAD_L2;
-										break;
-									default:
-										break;
-								}
-							}
-
-							//if (button != PAD_BUTTON_COUNT)
-							{
-								if (event.value)
-									mWheelData.buttons |= 1 << convert_wt_btn(mType, button); //on
-								else
-									mWheelData.buttons &= ~(1 << convert_wt_btn(mType, button)); //off
-							}
+								mWheelData.buttons &= ~(1 << convert_wt_btn(mType, button)); //off
 						}
 					}
 
@@ -342,15 +256,6 @@ namespace usb_pad
 
 			EnumerateDevices(device_list);
 
-			if (!LoadSetting(mDevType, mPort, APINAME, N_GAIN_ENABLED, b_gain))
-				b_gain = 1;
-			if (!LoadSetting(mDevType, mPort, APINAME, N_GAIN, gain))
-				gain = 100;
-			if (!LoadSetting(mDevType, mPort, APINAME, N_AUTOCENTER_MANAGED, b_ac))
-				b_ac = 1;
-			if (!LoadSetting(mDevType, mPort, APINAME, N_AUTOCENTER, ac))
-				ac = 100;
-
 			for (const auto& it : device_list)
 			{
 				has_steering = false;
@@ -380,61 +285,61 @@ namespace usb_pad
 					continue;
 				}
 
-				LoadMappings(mDevType, mPort, device.name, 3, 16, device.cfg);
+				memset(device.axis_map, 0xFF, sizeof(device.axis_map));
+				memset(device.btn_map, 0xFF, sizeof(device.btn_map));
+
+				// device.cfg.controls[0..max_buttons] - mapped buttons
+				// device.cfg.controls[max_buttons..etc] - mapped axes
+				int max_buttons = 0;
+				int max_axes = 0;
+				switch (mType)
+				{
+					case WT_BUZZ_CONTROLLER:
+						LoadBuzzMappings(mDevType, mPort, it.id, device.cfg);
+						max_buttons = 20;
+						break;
+					case WT_KEYBOARDMANIA_CONTROLLER:
+						max_buttons = 31;
+						LoadMappings(mDevType, mPort, it.id, max_buttons, 0, device.cfg);
+						break;
+					default:
+						max_buttons = JOY_STEERING;
+						max_axes = 3;
+						LoadMappings(mDevType, mPort, it.id, max_buttons, 3, device.cfg);
+						if (!LoadSetting(mDevType, mPort, APINAME, N_GAIN_ENABLED, b_gain))
+							b_gain = 1;
+						if (!LoadSetting(mDevType, mPort, APINAME, N_GAIN, gain))
+							gain = 100;
+						if (!LoadSetting(mDevType, mPort, APINAME, N_AUTOCENTER_MANAGED, b_ac))
+							b_ac = 1;
+						if (!LoadSetting(mDevType, mPort, APINAME, N_AUTOCENTER, ac))
+							ac = 100;
+						break;
+				}
 
 				// Axis Mapping
-				if (ioctl(device.cfg.fd, JSIOCGAXMAP, device.axis_map) < 0)
+				if (ioctl(device.cfg.fd, JSIOCGAXES, &(count)) >= 0 && count)
 				{
-					SysMessage("%s: Axis mapping failed: %s\n", APINAME, strerror(errno));
-					continue;
-				}
-				else
-				{
-					if (ioctl(device.cfg.fd, JSIOCGAXES, &(count)) >= 0)
+					for (int i = 0; i < max_axes; i++)
 					{
-						for (int i = 0; i < count; ++i)
+						int k = device.cfg.controls[i + max_buttons];
+						if (k > -1)
 						{
-							for (int k = 0; k < count; k++)
-							{
-								for (int i = JOY_STEERING; i < JOY_MAPS_COUNT; i++)
-								{
-									if (k == device.cfg.controls[i])
-									{
-										device.axis_map[k] = 0x80 | i;
-										if (i == JOY_STEERING)
-											has_steering = true;
-									}
-								}
-							}
+							device.axis_map[k] = 0x80 | (i + JOY_STEERING);
+							if (k == 0)
+								has_steering = true;
 						}
 					}
 				}
 
 				// Button Mapping
-				if (ioctl(device.cfg.fd, JSIOCGBTNMAP, device.btn_map) < 0)
+				if (ioctl(device.cfg.fd, JSIOCGBUTTONS, &(count)) >= 0 && count)
 				{
-					SysMessage("%s: Button mapping failed: %s\n", APINAME, strerror(errno));
-					continue;
-				}
-				else
-				{
-					if (ioctl(device.cfg.fd, JSIOCGBUTTONS, &(count)) >= 0)
+					for (int i = 0; i < max_buttons; i++)
 					{
-						for (int i = 0; i < count; ++i)
-						{
-							if (device.btn_map[i] == BTN_GAMEPAD)
-								device.is_gamepad = true;
-						}
-
-						if (!device.is_gamepad) //TODO Don't remap if gamepad?
-							for (int k = 0; k < count; k++)
-							{
-								for (int i = 0; i < JOY_STEERING; i++)
-								{
-									if (k == device.cfg.controls[i])
-										device.btn_map[k] = 0x8000 | i;
-								}
-							}
+						const auto k = device.cfg.controls[i];
+						if (k > -1)
+							device.btn_map[k] = 0x8000 | i;
 					}
 				}
 
@@ -467,6 +372,7 @@ namespace usb_pad
 				{
 					if ((mHandleFF = open(event.str().c_str(), /*O_WRONLY*/ O_RDWR)) < 0)
 					{
+						Console.Warning("USB: failed to open '%s'", event.str().c_str());
 					}
 					else
 						mFFdev = new evdev::EvdevFF(mHandleFF, b_gain, gain, b_ac, ac);

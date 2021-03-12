@@ -170,7 +170,13 @@ namespace usb_pad
 				return RESULT_CANCELED;
 
 			evdev::ApiCallbacks apicbs{GetEventName, EnumerateDevices, PollInput};
-			int ret = evdev::GtkPadConfigure(port, dev_type, "Joydev Settings", joydev::APINAME, GTK_WINDOW(data), apicbs);
+			int ret = 0;
+			if (!strcmp(dev_type, BuzzDevice::TypeName()))
+				ret = GtkBuzzConfigure(port, dev_type, "Joydev Settings", joydev::APINAME, GTK_WINDOW(data), apicbs);
+			else if (!strcmp(dev_type, KeyboardmaniaDevice::TypeName()))
+				ret = GtkKeyboardmaniaConfigure(port, dev_type, "Joydev Settings", joydev::APINAME, GTK_WINDOW(data), apicbs);
+			else
+				ret = evdev::GtkPadConfigure(port, dev_type, "Joydev Settings", joydev::APINAME, GTK_WINDOW(data), apicbs);
 			return ret;
 		}
 
